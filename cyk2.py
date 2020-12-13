@@ -2,29 +2,16 @@ import os
 
 
 def create_cell(first, second):
-    """
-    creates set of string from concatenation of each character in first
-    to each character in second
-    :param first: first set of characters
-    :param second: second set of characters
-    :return: set of desired values
-    """
     res = set()
     if first == set() or second == set():
         return set()
     for f in first:
         for s in second:
-            res.add(f+s)
-    return res
+            res.add(f+s)  # создаем все возможные комбинации из нетерминалов, например
+    return res            # B,E и B,E = B,E  E,B  B,B  E,E
 
 
 def read_grammar(filename="./grammar.txt"):
-    """
-    reads the rules of a context free grammar from a text file
-    :param filename: name of the text file in current directory
-    :return: two lists. v_rules lead to variables and t_rules
-    lead to terminals.
-    """
     filename = os.path.join(os.curdir, filename)
     with open(filename) as grammar:
         rules = grammar.readlines()
@@ -34,98 +21,90 @@ def read_grammar(filename="./grammar.txt"):
         for rule in rules:
             left, right = rule.split(" -> ")
 
-            # for two or more results from a variable
-            right = right[:-1].split(" | ")
+            right = right[:-1].split(" | ")  # если в правиле справа например AB | BE
             for ri in right:
 
-                # it is a terminal
                 if str.islower(ri):
-                    t_rules.append([left, ri])
+                    t_rules.append([left, ri])  # отдельно добавляю терминалы, т.к. они по определению продукцией
+                    # изменяться не могут
 
-                # it is a variable
                 else:
                     v_rules.append([left, ri])
         return v_rules, t_rules
 
 
 def read_input(filename="./input.txt"):
-    """
-    reads the inputs from a text file
-    :param filename: name of the text file in current directory
-    :return: list of inputs
-    """
     filename = os.path.join(os.curdir, filename)
     res = []
     with open(filename) as inp:
         inputs = inp.readlines()
         for i in inputs:
-
-            # remove \n
-            res.append(i[:-1])
+            res.append(i)
     return res
 
 
 def cyk_alg(varies, terms, inp):
-    """
-    implementation of CYK algorithm
-    :param varies: rules related to variables
-    :param terms: rules related to terminals
-    :param inp: input string
-    :return: resulting table
-    """
-
     length = len(inp)
     var0 = [va[0] for va in varies]
     var1 = [va[1] for va in varies]
+    print(var0)
+    print(var1)
 
-    # table on which we run the algorithm
+    # создаем пустую ступенчатую таблицу, заполненную пустыми множествами set()
     table = [[set() for _ in range(length-i)] for i in range(length)]
 
-    # Deal with variables
+    # Выводим нетерминал, соответствующий терминалу (заполняем 1 строчку)
     for i in range(length):
         for te in terms:
-            if inp[i] == te[1]:
+            if inp[i] == te[1]:  # если символ соответссует терминалу, то выводим соответствубщий нетерминал
                 table[0][i].add(te[0])
 
     # Deal with terminals
-    # its complexity is O(|G|*n^3)
-    for i in range(1, length):
-        for j in range(length - i):
-            for k in range(i):
-                row = create_cell(table[k][j], table[i-k-1][j+k+1])
-                for ro in row:
-                    if ro in var1:
-                        table[i][j].add(var0[var1.index(ro)])
+    for i in range(1, length):  # начинаем со второй строки, т.к первая уже заполнена
+        for j in range(length - i):  # для ступенчатой матрицы, элементов в каждой строке длина - кол-во строк
+            for k in range(i):  # начинаем идти сверху вниз к текущей ячейке
+                row = create_cell(table[k][j], table[i-k-1][j+k+1])  # на каждой итерации приближения к текущей ячейке
+                for ro in row:                                       # мы берем элемент над ней и по диагонали
+                    # справа, с каждой итерацией удаляясь по диагонали и приближаясь по вертикали
+                    if ro in var1:  # проверяем созданные комбинации, если такая комбинация есть в грамматике,
+                        # то добавляем в ячейку нетерминал слева для этой комбинации
+                        table[i][j].add(var0[var1.index(ro)])  # сначала получаем индекс элемента, далее по индексу
+                        # находим его в левых частях правил грамматики
 
-    # if the last element of table contains "S" the input belongs to the grammar
     return table
 
 
-def show_result(tab, inp):
-    """
-    this function prints the procedure of cyk.
-    in the end there is a message showing if the input
-    belongs to the grammar
-    :param tab: table
-    :param inp: input
-    :return: None
-    """
-    for c in inp:
-        print("\t{}".format(c), end="\t")
-    print()
-    for i in range(len(inp)):
-        print(i+1, end="")
-        for c in tab[i]:
-            if c == set():
-                print("\t{}".format("_"), end="\t")
-            else:
-                print("\t{}".format(c), end=" ")
-        print()
+def print_grid(table, word):
+    length = 7
+    word = list(word)
 
-    if 'S' in tab[len(inp)-1][0]:
-        print("The input belongs to this context free grammar!")
-    else:
-        print("The input does not belong to this context free grammar!")
+    for w in word:
+        print(w, end='')
+        for i in range(length - len(w)):
+            print(' ', end='')
+        print('|', end='')
+
+    print()
+    for i in range((len(word) + 1) * length):
+        print('-', end='')
+    print()
+
+    for line in table:
+        for cell in line:
+            if cell == set():
+                print('__', end='')
+                for i in range(length - 2):
+                    print(' ', end='')
+                print('|', end='')
+            else:
+                print(*cell, end='')
+                for i in range(length - len(cell)):
+                    print(' ', end='')
+                print('|', end='')
+        print()
+        for i in range(((len(line) + 1)*length)):
+            print('-', end='')
+        print()
 
 
 if __name__ == '__main__':
@@ -133,4 +112,4 @@ if __name__ == '__main__':
     r = read_input()[0]
     ta = cyk_alg(v, t, r)
     print(ta)
-    show_result(ta, r)
+    print_grid(ta, r)
