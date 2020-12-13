@@ -70,7 +70,7 @@ class CYK:
             print('|', end='')
 
         print()
-        for i in range((len(word)+1)*length):
+        for i in range((len(word) + 1) * length):
             print('-', end='')
         print()
 
